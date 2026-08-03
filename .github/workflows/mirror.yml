@@ -11,11 +11,16 @@ concurrency:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   mirror:
     name: Mirror public bundle
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout www distribution
         uses: actions/checkout@v5
@@ -43,6 +48,9 @@ jobs:
           touch site/.nojekyll
 
           source_sha="$(git -C source rev-parse HEAD)"
+          mkdir -p deploy
+          rsync -a --delete --exclude .git --exclude .github site/ deploy/
+
           git -C site config user.name "github-actions[bot]"
           git -C site config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git -C site add -A
@@ -54,3 +62,12 @@ jobs:
 
           git -C site commit -m "deploy: mirror Tirrenia site ${source_sha}"
           git -C site push origin main
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: deploy
+
+      - name: Deploy Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
